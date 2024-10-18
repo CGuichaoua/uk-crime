@@ -50,7 +50,8 @@ def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],i
     
     df.to_sql(table, engine, if_exists='replace', dtype=types, chunksize=1000000)
 
-def factor_categories(column_names, table_names, column_to_table_name:Callable[[str], str]=lambda x:x):
+def factor_categories(column_names, table_names, engine,
+                      column_to_table_name:Callable[[str], str]=lambda x:x):
     """
     Sépare plusieurs colonnes présentes dans les même tables en autant de tables de référence et remplace les valeurs par des identifiants.
     """
