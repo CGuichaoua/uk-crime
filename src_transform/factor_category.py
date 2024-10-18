@@ -33,8 +33,8 @@ def make_reverse_index(labels:pd.Series):
     """
     Renvoie une lambda qui mappe chaque libellé à son index.
     """
-    reverse_index = {label: idx for idx, label in labels.items()}
-    return lambda label: reverse_index[label]
+    reverse_index = {label.lower(): idx for idx, label in labels.items() if label is not None}
+    return lambda label: None if label is None else reverse_index[label.lower()]
 
 
 def replace_categorical_columns(table:str, label_sets:dict[str, pd.Series], engine:sqlalchemy.Engine, suffix:str="_"):
