@@ -64,7 +64,37 @@ def factor_categories(column_names:Iterable[str], table_name:str, engine:sqlalch
     replace_categorical_columns(table_name, label_sets, engine)
 
 
+#%%
 if __name__ == "__main__":
-    engine = connect_maria("crime-sample")
-    factor_categories(["Age range", "Selfdefinedethnicity"], "stopandsearch", engine,
-        lambda x:x.lower()+'s')
+    engine = connect_maria("crime")
+    category_columns = {
+        "outcomes": [
+            "Reportedby",
+            "Fallswithin",
+            "Location",
+            "Outcometype",
+        ],
+        "stopandsearch": [
+            "Type",
+            "Policingoperation",
+            "Agerange",
+            "Selfdefinedethnicity",
+            "Officerdefinedethnicity",
+            "Legislation",
+            "Objectofsearch",
+            "Outcome",
+            "Outcomelinkedtoobjectofsearch",
+            "gender_cat",
+        ],
+        "street":[
+            "Reportedby",
+            "Fallswithin",
+            "Location",
+            "Crimetype",
+            "Lastoutcomecategory",
+        ]
+        
+    }
+    for table, column_names in category_columns.items():
+        factor_categories(column_names, table, engine,
+            lambda x:x.lower()+'s')
