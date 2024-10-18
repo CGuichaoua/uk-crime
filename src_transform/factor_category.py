@@ -27,7 +27,7 @@ def create_labels_table(table_name:str, labels:pd.Series, engine:sqlalchemy.Engi
     Ecrit la table de correspondance entre les id des catégories et leurs libellés dans la BDD.
     """
     labels.index = labels.index.rename("id")
-    labels.to_sql(table_name, engine, dtype={"id": sqlalchemy.types.Integer}, if_exists='replace')
+    labels.to_sql(table_name, engine, dtype={"id": sqlalchemy.types.Integer}, if_exists='fail')
 
 def make_reverse_index(labels:pd.Series):
     """
