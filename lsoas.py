@@ -8,8 +8,8 @@ Created on Tue Oct 15 12:28:09 2024
 import os
 import pandas as pd
 
-# folder='C:/Users/ianni/Desktop/projet/Crimes au Royaume-Uni-20241014T124028Z-001/Crimes au Royaume-Uni'
-folder='C:/Users/Admin.local/Desktop/projet integration/Crimes au Royaume-Uni-20241015T094109Z-001/Crimes au Royaume-Uni'
+folder='C:/Users/ianni/Desktop/projet/Crimes au Royaume-Uni-20241014T124028Z-001/Crimes au Royaume-Uni'
+# folder='C:/Users/Admin.local/Desktop/projet integration/Crimes au Royaume-Uni-20241015T094109Z-001/Crimes au Royaume-Uni'
 
 # =============================================================================
 # old_lsoa_folder='C:/Users/Admin.local/Desktop/projet integration/Lower_Layer_Super_Output_Areas_(December_2011)_Names_and_Codes_in_England_and_Wales.csv'
@@ -77,7 +77,8 @@ df3 = pd.concat(dfs3, ignore_index=True) if dfs3 else pd.DataFrame()  # DataFram
 
 
 
-folder_change_lsoas='C:/Users/Admin.local/Desktop/projet integration/LSOA_(2011)_to_LSOA_(2021)_to_Local_Authority_District_(2022)_Best_Fit_Lookup_for_EW_(V2).csv'
+# folder_change_lsoas='C:/Users/Admin.local/Desktop/projet integration/LSOA_(2011)_to_LSOA_(2021)_to_Local_Authority_District_(2022)_Best_Fit_Lookup_for_EW_(V2).csv'
+folder_change_lsoas='C:/Users/ianni/Desktop/projet/Crimes au Royaume-Uni-20241014T124028Z-001/LSOA_(2011)_to_LSOA_(2021)_to_Local_Authority_District_(2022)_Best_Fit_Lookup_for_EW_(V2).csv'
 data=pd.read_csv(folder_change_lsoas)
 data=data[['LSOA11CD','LSOA11NM','LSOA21CD','LSOA21NM']] 
 #garder les columns qui nous intéresse, code & name avant et après 2021
@@ -121,6 +122,13 @@ print(len(aaa)/len(aa),len(bbb)/len(bb))
 
 
 
+# =============================================================================
+# a=aa.merge(data2, left_on=['LSOA code','LSOA name'],right_on=['LSOA21CD','LSOA21NM'],how='left')
+# aaa=a[a['LSOA11CD']!=a['LSOA21CD']]
+# b=bb.merge(data2, left_on=['LSOA code','LSOA name'],right_on=['LSOA21CD','LSOA21NM'],how='left')
+# bbb=b[b['LSOA11CD']!=b['LSOA21CD']]
+# # IDENTIFIER CE QU'IL SE PASSE EXACTEMENT SUR LES ~2000 qui roll back
+# =============================================================================
 
 
 
