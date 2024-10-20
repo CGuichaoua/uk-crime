@@ -35,8 +35,8 @@ if conn:
     try:
         # Exécuter la requête pour récupérer les données géolocalisées
         query = """
-        SELECT latitude, longitude, crime_category 
-        FROM street 
+        SELECT Latitude, Longitude, Crimetype
+        FROM street_temp
         WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
         """
         df = pd.read_sql(query, conn)
