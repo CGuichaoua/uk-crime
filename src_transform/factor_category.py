@@ -38,7 +38,8 @@ def make_reverse_index(labels:pd.Series):
     return lambda label: None if label is None else reverse_index[label.lower()]
 
 
-def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],int]], engine:sqlalchemy.Engine):
+def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],int]], engine:sqlalchemy.Engine,
+                                suffix:str='_'):
     """
     Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés, avec un suffixe optionnel.
     """
@@ -53,7 +54,8 @@ def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],i
     df.to_sql(table+suffix, engine, if_exists='replace', dtype=types, chunksize=100000, index=False)
 
 def factor_categories(column_names, table_names, engine,
-                      column_to_table_name:Callable[[str], str]=lambda x:x):
+                      column_to_table_name:Callable[[str], str]=lambda x:x,
+                      verbose=False):
     """
     Sépare plusieurs colonnes présentes dans les même tables en autant de tables de référence et remplace les valeurs par des identifiants.
     """
@@ -100,9 +102,9 @@ if __name__ == "__main__":
         (("street_temp_",),[
             "Crimetype",
             "Lastoutcomecategory",
-        ]
+        ])
         
-    }
+    ]
     for tables, column_names in category_columns.items():
         factor_categories(column_names, tables, engine,
             lambda x:x.lower()+'_ref')
