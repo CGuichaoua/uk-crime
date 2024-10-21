@@ -43,12 +43,14 @@ def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],i
     Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés, avec un suffixe optionnel.
     """
     df = pd.read_sql_table(table, engine)
-    types = {}
+    types = {col['name']:col['type'] 
+             for col in sqlalchemy.inspect(engine).get_columns(table)
+    }
     for column_name, reverse_index in label_maps.items():
         df[column_name] = df[column_name].map(reverse_index)
         types[column_name] = sqlalchemy.types.Integer
     
-    df.to_sql(table, engine, if_exists='replace', dtype=types, chunksize=1000000)
+    df.to_sql(table+suffix, engine, if_exists='replace', dtype=types, chunksize=100000, index=False)
 
 def factor_categories(column_names, table_names, engine,
                       column_to_table_name:Callable[[str], str]=lambda x:x):
