@@ -69,13 +69,14 @@ def factor_categories(column_names, table_names, engine,
 
 #%%
 if __name__ == "__main__":
-    engine = connect_maria("crime")
-    category_columns = {
-        ("outcomes", "street"): [
+    engine = connect_maria("crime_short_test")
+    print("Connected to DB")
+    category_columns = [
+        (("outcomes_temp", "street_temp"), [
             "Reportedby",
             "Location",
-        ],
-        ("stopandsearch"): [
+        ]),
+        (("stopandsearch_temp",), [
             "Type",
             "Policingoperation",
             "Agerange",
@@ -84,11 +85,10 @@ if __name__ == "__main__":
             "Legislation",
             "Objectofsearch",
             "Outcome",
-            "Outcomelinkedtoobjectofsearch",
-            "gender_cat",
-        ],
-        ("outcomes"): ["Outcometype"],
-        ("street"):[
+            "Gender",
+        ]),
+        (("outcomes_temp_",), ["Outcometype"]),
+        (("street_temp_",),[
             "Crimetype",
             "Lastoutcomecategory",
         ]
