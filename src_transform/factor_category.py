@@ -105,6 +105,6 @@ if __name__ == "__main__":
         ])
         
     ]
-    for tables, column_names in category_columns.items():
+    for tables, column_names in category_columns:
         factor_categories(column_names, tables, engine,
             lambda x:x.lower()+'_ref')
