@@ -59,8 +59,17 @@ def factor_categories(column_names, table_names, engine,
     """
     label_maps = {}
     for column_name in column_names:
-        labels = get_labels(column_name, table_names, engine)
-        create_labels_table(column_to_table_name(column_name), labels, engine)
+        reference_table_name = column_to_table_name(column_name)
+        if verbose:
+            print(f"Building reference table {reference_table_name} for {column_name}")
+        if sqlalchemy.inspect(engine).has_table(reference_table_name):
+            if verbose:
+                print(f"Found table for {reference_table_name}, skipping build and reading instead")
+            labels = pd.read_sql_table(reference_table_name, engine)
+            labels = labels[labels.columns[1]]  # Récupérer la Series depuis la DataFrame
+        else:
+            labels = get_labels(column_name, table_names, engine)
+            create_labels_table(reference_table_name, labels, engine)
         label_maps[column_name] = make_reverse_index(labels)
     
     for table_name in table_names:
