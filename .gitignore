@@ -1,0 +1,8 @@
+# Exclude virtual environment
+.venv/
+
+# Exclude specific CSV file
+declarations.csv
+
+# Exclude Visual Studio Code settings
+.vscode/*
