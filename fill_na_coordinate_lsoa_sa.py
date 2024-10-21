@@ -133,14 +133,14 @@ mask = (df3['LSOA code'].isnull()) & (df3['Latitude'].notnull())
 missing_lsoa_df3 = df3.loc[mask]
 
 centroid_lsoa=[[get_lsoa_centroid(x,lsoa_geojson),x] for x in lsoa_data['LSOA11CD']]
-centroid_sa=[[get_sa_centroid(x,sa_geojson),x] for x in sa_data['SA2011']]
+# centroid_sa=[[get_sa_centroid(x,sa_geojson),x] for x in sa_data['SA2011']]
 
 centroid_lsoa = [(lat_lon[0], lat_lon[1], code) for (lat_lon, code) in centroid_lsoa]
 centroid_lsoa = pd.DataFrame(centroid_lsoa, columns=['lat', 'lon', 'LSOA code'])
 
-centroid_sa = [(lat_lon[0], lat_lon[1], code) for (lat_lon, code) in centroid_sa if lat_lon is not None]
-centroid_sa = pd.DataFrame(centroid_sa, columns=['lat', 'lon', 'SA code'])
-
+# centroid_sa = [(lat_lon[0], lat_lon[1], code) for (lat_lon, code) in centroid_sa if lat_lon is not None]
+# centroid_sa = pd.DataFrame(centroid_sa, columns=['lat', 'lon', 'SA code'])
+centroid_sa=pd.read_csv('sa_centroids.csv')
 
 #knn sur les centroid pour trouver le plus proche voisin des lat,lon orphelin de lsoa/sa code
 nn_sa = NearestNeighbors(n_neighbors=1, metric='euclidean')
@@ -170,7 +170,7 @@ missing_lsoa_df3['sa_code_match'] = centroid_sa.iloc[indices_sa.flatten()]['SA c
 missing_lsoa_df3['distance_sa_match'] = distances_sa.flatten()
 
 
-threshold = 0.01  #~1km
+threshold = 0.05  #~1km
 
 # Update the LSOA code based on the smallest distance
 missing_lsoa_df3['LSOA code'] = np.select(
@@ -213,16 +213,71 @@ rows_with_lsoa_no_latitude = df3[df3['LSOA code'].notnull() & df3['Latitude'].is
 print(rows_with_lsoa_no_latitude)
 
 
+# =============================================================================
+# step 5 take row with latitude and no lsoa and fill lsoa if possible in df2 (repeat step 3)
+# =============================================================================
 
 
+missing_lsoa_df2 = df2[df2['Latitude'].notnull()]
+# =============================================================================
+# missing_lsoa_df2['LSOA code']=None
+# missing_lsoa_df2['LSOA name']=None
+# =============================================================================
+lsoa_codes = []
+distance_lsoa = []
+sa_codes = []
+distance_sa = []
+
+coordinates = missing_lsoa_df2[['Latitude', 'Longitude']].values
+
+# Get nearest neighbors for LSOA
+distances_lsoa, indices_lsoa = nn_lsoa.kneighbors(coordinates)
+
+# Get nearest neighbors for SA
+distances_sa, indices_sa = nn_sa.kneighbors(coordinates)
+
+# Extract the corresponding LSOA codes and SA codes
+missing_lsoa_df2['lsoa_code_match'] = centroid_lsoa.iloc[indices_lsoa.flatten()]['LSOA code'].values
+missing_lsoa_df2['distance_lsoa_match'] = distances_lsoa.flatten()
+
+missing_lsoa_df2['sa_code_match'] = centroid_sa.iloc[indices_sa.flatten()]['SA code'].values
+missing_lsoa_df2['distance_sa_match'] = distances_sa.flatten()
+
+threshold = 0.05  #~1km
 
 
+# Update the LSOA code based on the smallest distance
+missing_lsoa_df2['LSOA code'] = np.select(
+    [
+        (missing_lsoa_df2['distance_lsoa_match'] < threshold) & 
+        (missing_lsoa_df2['distance_lsoa_match'] < missing_lsoa_df2['distance_sa_match']),
+        (missing_lsoa_df2['distance_sa_match'] < threshold)
+    ],
+    [
+        missing_lsoa_df2['lsoa_code_match'],
+        missing_lsoa_df2['sa_code_match']
+    ],
+    default=missing_lsoa_df2['LSOA code']
+)
+
+missing_lsoa_df2.drop(columns=missing_lsoa_df2.columns[-4:], inplace=True)
+
+missing_lsoa_df2['original_index'] = missing_lsoa_df2.index
+missing_lsoa_df2 = missing_lsoa_df2.merge(lsoa_data, left_on='LSOA code', right_on='LSOA11CD', how='left')
+missing_lsoa_df2['LSOA name'] = missing_lsoa_df2['LSOA name'].fillna(missing_lsoa_df2['LSOA11NM'])
+missing_lsoa_df2 = missing_lsoa_df2.drop(['LSOA11CD', 'LSOA11NM'], axis=1)
+
+missing_lsoa_df2 = missing_lsoa_df2.merge(sa_data, left_on='LSOA code', right_on='SA2011', how='left')
+missing_lsoa_df2['LSOA name'] = missing_lsoa_df2['LSOA name'].fillna(missing_lsoa_df2['SA2011NAME'])
+missing_lsoa_df2 = missing_lsoa_df2.drop(['SA2011', 'SA2011NAME'], axis=1)
+
+missing_lsoa_df2 = missing_lsoa_df2[missing_lsoa_df2['LSOA code'].notnull()]
+missing_lsoa_df2.set_index('original_index', inplace=True)
 
 
-
-
-
-
+# df2['LSOA code']=None
+# df2['LSOA name']=None
+df2.update(missing_lsoa_df2)
 
 
 
