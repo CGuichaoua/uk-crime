@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-import sqlite3
+import atexit
 import streamlit as st
-from db_service_sqlite import create_connection
+from db_service_sqlalchemy import create_connection, close_connection
 from menu_accueil import menu_accueil
 from menu_localisation import menu_localisation
 from menu_repartition import menu_repartition_delit
@@ -12,11 +12,13 @@ from menu_repartition import menu_repartition_Reportedby
 from menu_filtre_avance import menu_filtre_avance
 
 
-# Nom de la base de données SQLite
-#db_name = "../src_batch/crime.db"  # Fichier SQLite
-db_name="C:/Users/Admin.local/Documents/projetint/data_crime.db"
-# Connexion à SQLite
-conn = create_connection(db_name)
+
+# Connexion à la base de données
+db_name="crime"
+conn, engine = create_connection("127.0.0.1", "root", "", db_name)
+
+# Enregistrer la fonction de nettoyage pour qu'elle soit appelée à la sortie de Streamlit
+atexit.register(lambda:close_connection(conn,engine))
 
 # Menu de navigation
 menu = st.sidebar.radio(
