@@ -28,7 +28,10 @@ def create_labels_table(table_name:str, labels:pd.Series, engine:sqlalchemy.Engi
     Ecrit la table de correspondance entre les id des catégories et leurs libellés dans la BDD.
     """
     labels.index = labels.index.rename("id")
-    labels.to_sql(table_name, engine, dtype={"id": sqlalchemy.types.Integer}, if_exists='fail')
+    labels.to_sql(table_name, engine, dtype={"id": sqlalchemy.types.Integer}, if_exists='fail')    
+    with engine.connect() as conn:
+        conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` ADD PRIMARY KEY (`{labels.index.name}`);"))
+        conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` ADD UNIQUE (`{labels.name}`);"))
 
 def make_reverse_index(labels:pd.Series):
     """
@@ -52,6 +55,7 @@ def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],i
         types[column_name] = sqlalchemy.types.Integer
     
     df.to_sql(table+suffix, engine, if_exists='replace', dtype=types, chunksize=100000, index=False)
+
 
 def factor_categories(column_names, table_names, engine,
                       column_to_table_name:Callable[[str], str]=lambda x:x,
