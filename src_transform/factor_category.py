@@ -7,7 +7,7 @@ def get_labels(column:str, tables:Iterable[str], engine:sqlalchemy.Engine):
     """
     Récupère les labels des catégories de la colonne à factoriser.
     """
-    subqueries = [f'SELECT DISTINCT `{column}` FROM `{table}`' for table in tables]
+    subqueries = [f'SELECT DISTINCT `{column}` FROM `{table}` WHERE `{column}` IS NOT NULL' for table in tables]
     query = "\nUNION\n".join(subqueries)
     return pd.read_sql_query(query, engine)[column]
 
