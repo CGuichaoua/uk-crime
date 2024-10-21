@@ -202,7 +202,7 @@ def parcourir_arborescence(connection,chemin_racine, db_path,liste_nom_table,dty
     
     for racine, sous_repertoires, fichiers in os.walk(chemin_racine):
          for fichier in fichiers:
-            if filter is not None and not filt(fichier):
+            if filt is not None and not filt(fichier):
                 continue
             if fichier.endswith(".csv"):
                 chemin_fichier = os.path.join(racine, fichier)
@@ -236,7 +236,7 @@ if __name__ == '__main__':
 
     liste_col_a_supprimer=['Falls within']
 
-    filt = lambda s: "2019" in s if short_import else None
+    filt = (lambda s: "2019" in s) if short_import else None
 
     # Dictionnaire pour mémoriser l'index pour chaque table
     index_dict = {}
