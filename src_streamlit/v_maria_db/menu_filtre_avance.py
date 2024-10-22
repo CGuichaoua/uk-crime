@@ -7,27 +7,27 @@ def menu_filtre_avance(conn: sqlite3.Connection) -> None:
     st.title("Filtre avancé")
 
     # Récupérer les valeurs uniques pour les filtres
-    crime_type_list = pd.read_sql("SELECT DISTINCT Crimetype FROM street;", conn)[
+    crime_type_list = pd.read_sql("SELECT DISTINCT Crimetype FROM street_temp;", conn)[
         "Crimetype"
     ].tolist()
 
     last_outcome_list = pd.read_sql(
-        "SELECT DISTINCT Lastoutcomecategory FROM street;", conn
+        "SELECT DISTINCT Lastoutcomecategory FROM street_temp;", conn
     )["Lastoutcomecategory"].tolist()
 
-    reportedby_list = pd.read_sql("SELECT DISTINCT Reportedby FROM street;", conn)[
+    reportedby_list = pd.read_sql("SELECT DISTINCT Reportedby FROM street_temp;", conn)[
         "Reportedby"
     ].tolist()
 
-    start_date = pd.read_sql("SELECT MIN(Month) FROM street;", conn).iloc[0][0]
-    end_date = pd.read_sql("SELECT MAX(Month) FROM street;", conn).iloc[0][0]
+    start_date = pd.read_sql("SELECT MIN(Month) FROM street_temp;", conn).iloc[0][0]
+    end_date = pd.read_sql("SELECT MAX(Month) FROM street_temp;", conn).iloc[0][0]
 
     min_lat, max_lat = pd.read_sql(
-        "SELECT MIN(Latitude), MAX(Latitude) FROM street;", conn
+        "SELECT MIN(Latitude), MAX(Latitude) FROM street_temp;", conn
     ).iloc[0]
 
     min_lon, max_lon = pd.read_sql(
-        "SELECT MIN(Longitude), MAX(Longitude) FROM street;", conn
+        "SELECT MIN(Longitude), MAX(Longitude) FROM street_temp;", conn
     ).iloc[0]
 
     # Filtres interactifs
@@ -81,7 +81,7 @@ def menu_filtre_avance(conn: sqlite3.Connection) -> None:
     # Construire la requête SQL basée sur les filtres
     if st.button("Exécuter"):
         query = f"""
-        SELECT * FROM street
+        SELECT * FROM street_temp
         WHERE Crimetype IN ({crime_types_str})
         AND Lastoutcomecategory IN ({last_outcome_str})
         AND Reportedby IN ({reportedby_str})

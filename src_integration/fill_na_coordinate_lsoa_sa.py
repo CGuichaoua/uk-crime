@@ -5,18 +5,17 @@ Created on Sun Oct 20 13:46:14 2024
 @author: ianni
 """
 import os
+from collections import Counter
 import pandas as pd
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from collections import Counter
 from lsoa_sa_boundaries import *
 
 
 
-folder='C:/Users/ianni/Desktop/projet/Crimes au Royaume-Uni-20241014T124028Z-001/Crimes au Royaume-Uni'
-lsoa_file='C:/Users/ianni/Desktop/projet/Crimes au Royaume-Uni-20241014T124028Z-001/LSOA_(2011)_to_LSOA_(2021)_to_Local_Authority_District_(2022)_Best_Fit_Lookup_for_EW_(V2).csv'
-sa_file='C:/Users/ianni/Desktop/projet/Crimes au Royaume-Uni-20241014T124028Z-001/Look-up Tables_0.xlsx'
-
+folder="C:/Users/Admin.local/Documents/projetint/files"
+lsoa_file='LSOA_(2011)_to_LSOA_(2021)_to_Local_Authority_District_(2022)_Best_Fit_Lookup_for_EW_(V2).csv'
+sa_file='Look-up Tables_0.xlsx'
 
 
 ending1='outcomes.csv'
@@ -49,6 +48,9 @@ df1 = pd.concat(dfs1, ignore_index=True) if dfs1 else pd.DataFrame()  # DataFram
 df2 = pd.concat(dfs2, ignore_index=True) if dfs2 else pd.DataFrame()  # DataFrame for stop-and-search.csv
 df3 = pd.concat(dfs3, ignore_index=True) if dfs3 else pd.DataFrame()  # DataFrame for street.csv
 
+print(df1.head())
+
+
 lsoa_data=pd.read_csv(lsoa_file)
 lsoa_data=lsoa_data[['LSOA11CD','LSOA11NM']]
 
@@ -59,6 +61,23 @@ sa_data['SA2011NAME']=sa_data['SA2011NAME'].str.extract(r'\((.*?)\)')
 # =============================================================================
 # step 1 take row with latitude and no lsoa and fill lsoa if possible in df1
 # =============================================================================
+"""
+
+mask = (df1['LSOA code'].isnull()) & (df1['Latitude'].notnull())
+# Use the mask with .loc to keep the original indices
+missing_lsoa_df1 = df1.loc[mask]
+# missing_lsoa_df1 = df1[df1['LSOA code'].isnull()] # si code = null, name aussi
+# missing_lsoa_df1 = missing_lsoa_df1[missing_lsoa_df1['Latitude'].notnull()] # si longitude = ok, latitude aussi
+valid_lsoa_df1 = df1[df1['LSOA code'].notnull()] # si code = null, name aussi
+valid_lsoa_df1 = valid_lsoa_df1[valid_lsoa_df1['Latitude'].notnull()] # si longitude = ok, latitude aussi
+valid_lsoa_df1 = valid_lsoa_df1.drop_duplicates(subset=['Latitude', 'Longitude', 'LSOA code'])
+
+
+# Prepare coordinates for KNN
+valid_coords = valid_lsoa_df1[['Latitude', 'Longitude']].values
+missing_coords = missing_lsoa_df1[['Latitude', 'Longitude']].values
+"""
+mask = (df1['LSOA code'].isnull()) & (df1['Latitude'].notnull())
 mask = (df1['LSOA code'].isnull()) & (df1['Latitude'].notnull())
 # Use the mask with .loc to keep the original indices
 missing_lsoa_df1 = df1.loc[mask]
@@ -279,7 +298,9 @@ missing_lsoa_df2.set_index('original_index', inplace=True)
 # df2['LSOA name']=None
 df2.update(missing_lsoa_df2)
 
-
+df1.to_sql("C:/Users/Admin.local/Documents/projetint/"+ending1)
+df2.to_sql("C:/Users/Admin.local/Documents/projetint/"+ending2)
+df3.to_sql("C:/Users/Admin.local/Documents/projetint/"+ending3)
 
 
 

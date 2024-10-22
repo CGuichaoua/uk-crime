@@ -12,7 +12,7 @@ def menu_repartition_delit(conn: sqlite3.Connection) -> None:
             # Afficher la répartition des crimes par type
             query1 = """
             SELECT Crimetype, COUNT(*) AS count
-            FROM street
+            FROM street_temp
             GROUP BY Crimetype
             ORDER BY count DESC;
             """
@@ -47,7 +47,7 @@ def menu_repartition_LSOAcode(conn: sqlite3.Connection) -> None:
             # Afficher la répartition des crimes par type
             query1 = """
             SELECT LSOAcode, COUNT(*) AS count
-            FROM street
+            FROM street_temp
             GROUP BY LSOAcode
             ORDER BY count DESC;
             """
@@ -82,7 +82,7 @@ def menu_repartition_Lastoutcomecategory(conn: sqlite3.Connection) -> None:
             # Afficher la répartition des crimes par type
             query1 = """
             SELECT Lastoutcomecategory, COUNT(*) AS count
-            FROM street
+            FROM street_temp
             GROUP BY Lastoutcomecategory
             ORDER BY count DESC;
             """
@@ -117,7 +117,7 @@ def menu_repartition_Reportedby(conn: sqlite3.Connection) -> None:
             # Afficher la répartition des crimes par type
             query1 = """
             SELECT Reportedby, COUNT(*) AS count
-            FROM street
+            FROM street_temp
             GROUP BY Reportedby
             ORDER BY count DESC;
             """

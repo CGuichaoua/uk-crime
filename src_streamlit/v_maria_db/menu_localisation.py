@@ -16,7 +16,7 @@ def menu_localisation(conn: sqlite3.Connection) -> None:
         try:
             st.title("Localisation par type de délit")
             # Exécuter la requête pour récupérer les types de crimes distincts
-            distinct_query = "SELECT DISTINCT Crimetype FROM street;"
+            distinct_query = "SELECT DISTINCT Crimetype FROM street_temp;"
             distinct_df = pd.read_sql_query(distinct_query, conn)
 
             # Créer un dictionnaire pour mapper les types de crimes à des couleurs
@@ -37,7 +37,7 @@ def menu_localisation(conn: sqlite3.Connection) -> None:
                 # Exécuter la requête pour récupérer les données géolocalisées
                 query = """
                 SELECT Latitude, Longitude, Crimetype
-                FROM street
+                FROM street_temp
                 WHERE Latitude IS NOT NULL AND Longitude IS NOT NULL
                 LIMIT 500000;
                 """
