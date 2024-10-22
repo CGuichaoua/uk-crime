@@ -46,9 +46,9 @@ def make_reverse_index(labels:pd.Series):
 
 
 def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],int]], engine:sqlalchemy.Engine,
-                                suffix:str='_'):
+                                suffix:str='_') -> str:
     """
-    Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés, avec un suffixe optionnel.
+    Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés, avec un suffixe optionnel. Renvoie le nom de la table créée
     """
     df = pd.read_sql_table(table, engine)
     types = {col['name']:col['type'] 
@@ -57,8 +57,9 @@ def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],i
     for column_name, reverse_index in label_maps.items():
         df[column_name] = df[column_name].map(reverse_index)
         types[column_name] = sqlalchemy.types.Integer
-    
-    df.to_sql(table+suffix, engine, if_exists='replace', dtype=types, chunksize=100000, index=False)
+    new_table_name = table if table.endswith(suffix) else table+suffix
+    df.to_sql(new_table_name, engine, if_exists='replace', dtype=types, chunksize=100000, index=False)
+    return new_table_name
 
 
 def factor_categories(column_names, table_names, engine,
@@ -83,7 +84,7 @@ def factor_categories(column_names, table_names, engine,
         label_maps[column_name] = make_reverse_index(labels)
     
     for table_name in table_names:
-        replace_categorical_columns(table_name, label_maps, engine)
+        new_table_name = replace_categorical_columns(table_name, label_maps, engine)
 
 
 #%%
