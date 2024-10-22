@@ -55,6 +55,9 @@ def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],i
              for col in sqlalchemy.inspect(engine).get_columns(table)
     }
     for column_name, reverse_index in label_maps.items():
+        if types[column_name] == sqlalchemy.types.Integer:
+            print(f"{column_name} is already an Integer type. Skipping reverse index.")
+            continue
         df[column_name] = df[column_name].map(reverse_index)
         types[column_name] = sqlalchemy.types.Integer
     new_table_name = table if table.endswith(suffix) else table+suffix
