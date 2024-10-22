@@ -62,6 +62,24 @@ def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],i
     return new_table_name
 
 
+def add_foreign_keys(column_names, table_name, engine,
+                    column_to_table_name:Callable[[str], str]=lambda x:x,
+                    verbose=False):
+    """
+    Ajoute les foreign key correspondant aux colonnes factorisées
+    """
+    with engine.connect() as conn:
+        for column_name in column_names:
+            query = f"ALTER TABLE `{table_name}` \
+                ADD CONSTRAINT `fk_{table_name}_{column_name}` FOREIGN KEY (`{column_name}`) \
+                REFERENCES `{column_to_table_name(column_name)}`(`id`) \
+                ON DELETE CASCADE;"
+            if verbose:
+                print(query)
+            conn.execute(sqlalchemy.text(query))
+
+
+
 def factor_categories(column_names, table_names, engine,
                       column_to_table_name:Callable[[str], str]=lambda x:x,
                       verbose=False):
@@ -85,6 +103,7 @@ def factor_categories(column_names, table_names, engine,
     
     for table_name in table_names:
         new_table_name = replace_categorical_columns(table_name, label_maps, engine)
+        add_foreign_keys(column_names, new_table_name, engine, column_to_table_name, verbose)
 
 
 #%%
