@@ -87,8 +87,10 @@ def restore_constraints(new_table:str, constraint_pk, constraints_fk, engine):
             ({', '.join(foreign_key['referred_columns'])})"
         for foreign_key in constraints_fk)
     with engine.connect() as conn:
+        conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 0;"))
         for query in queries:
             conn.execute(sqlalchemy.text(query))
+        conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 1;"))
 
 def replace_categorical_columns(old_table:str,
                                 label_maps:dict[str, tuple[Callable[[str],int], SchemaType]],
@@ -124,6 +126,7 @@ def add_foreign_keys(column_names, table_name, engine,
     Ajoute les foreign key correspondant aux colonnes factorisées
     """
     with engine.connect() as conn:
+        conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 0;"))
         for column_name in column_names:
             query = f"ALTER TABLE `{table_name}` \
                 ADD CONSTRAINT `fk_{table_name}_{column_name}` FOREIGN KEY (`{column_name}`) \
@@ -132,6 +135,7 @@ def add_foreign_keys(column_names, table_name, engine,
             if verbose:
                 print(query)
             conn.execute(sqlalchemy.text(query))
+        conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 1;"))
 
 
 
