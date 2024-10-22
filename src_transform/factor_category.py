@@ -5,10 +5,10 @@ from collections.abc import Callable
 from unidecode import unidecode
 import pandas as pd
 import sqlalchemy
-from sqlalchemy.dialects.mysql import TINYINT, SMALLINT, MEDIUMINT, INTEGER, BIGINT
+from sqlalchemy.dialects.mysql import TINYINT, SMALLINT, MEDIUMINT, INTEGER, BIGINT, VARCHAR
 from sqlalchemy.types import SchemaType
 from sqlalchemy import Engine as SqlEngine
-from sqlalchemy import Table,ForeignKeyConstraint, PrimaryKeyConstraint
+from sqlalchemy import Table,ForeignKeyConstraint, PrimaryKeyConstraint, Column
 
 def standardize_string(s: str):
     """
