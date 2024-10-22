@@ -1,18 +1,26 @@
-import pandas as pd
-import sqlalchemy
+"""Code to factorize categorical labels out into a reference table."""
 import math
-from unidecode import unidecode
 from collections.abc import Iterable
 from collections.abc import Callable
+from unidecode import unidecode
+import pandas as pd
+import sqlalchemy
+from sqlalchemy.dialects.mysql import TINYINT, SMALLINT, MEDIUMINT, INTEGER, BIGINT
+from sqlalchemy.types import SchemaType
+from sqlalchemy import Engine as SqlEngine
 
 def standardize_string(s: str):
+    """
+    Convertit une chaine en sa version minuscule sans accents.
+    """
     return unidecode(s).lower()
 
-def get_labels(column:str, tables:Iterable[str], engine:sqlalchemy.Engine):
+def get_labels(column:str, tables:Iterable[str], engine:SqlEngine):
     """
     Récupère les labels des catégories de la colonne à factoriser.
     """
-    subqueries = [f'SELECT DISTINCT `{column}` FROM `{table}` WHERE `{column}` IS NOT NULL' for table in tables]
+    subqueries = [f'SELECT DISTINCT `{column}` FROM `{table}` \
+                  WHERE `{column}` IS NOT NULL' for table in tables]
     query = "\nUNION\n".join(subqueries)
     return pd.read_sql_query(query, engine)[column]
 
@@ -33,7 +41,6 @@ def min_int_size(nb_line:int, safety_factor:int=2):
     """
     Renvoie la taille de données appropriée au nombre de lignes passé.
     """
-    from sqlalchemy.dialects.mysql import TINYINT, SMALLINT, MEDIUMINT, INTEGER, BIGINT
     sizes = [(TINYINT(unsigned=True), 8),
              (SMALLINT(unsigned=True), 16),
              (MEDIUMINT(unsigned=True), 24),
@@ -43,40 +50,46 @@ def min_int_size(nb_line:int, safety_factor:int=2):
     log_len = math.log2(nb_line if nb_line != 0 else 1) + math.log(safety_factor)
     try:
         return next(type for (type, max_size) in sizes if max_size > log_len)
-    except StopIteration:
-        raise ValueError("Table too big to index")
+    except StopIteration as e:
+        raise ValueError("Table too big to index") from e
 
 
 
-def create_labels_table(table_name:str, labels:pd.Series, engine:sqlalchemy.Engine) -> None:
+def create_labels_table(table_name:str, labels:pd.Series, engine:SqlEngine) -> None:
     """
     Ecrit la table de correspondance entre les id des catégories et leurs libellés dans la BDD.
     Renvoie le type de donnée 
     """
     labels.index = labels.index.rename("id")
     dtype = min_int_size(len(labels), safety_factor=2)
-    labels.to_sql(table_name, engine, dtype={"id": dtype}, if_exists='fail')    
+    labels.to_sql(table_name, engine, dtype={"id": dtype}, if_exists='fail')
     with engine.connect() as conn:
-        conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` ADD PRIMARY KEY (`{labels.index.name}`);"))
-        conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` ADD UNIQUE (`{labels.name}`);"))
+        conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` \
+                                     ADD PRIMARY KEY (`{labels.index.name}`);"))
+        conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` \
+                                     ADD UNIQUE (`{labels.name}`);"))
     return dtype
 
 def make_reverse_index(labels:pd.Series):
     """
     Renvoie une lambda qui mappe chaque libellé à son index.
     """
-    reverse_index = {standardize_string(label): idx for idx, label in labels.items() if label is not None}
+    reverse_index = {standardize_string(label): idx
+                     for idx, label in labels.items()
+                     if label is not None}
     return lambda label: None if label is None else reverse_index[standardize_string(label)]
 
 
-def replace_categorical_columns(table:str, label_maps:dict[str, tuple[Callable[[str],int], sqlalchemy.types.SchemaType]], engine:sqlalchemy.Engine,
-                                suffix:str='_') -> str:
+def replace_categorical_columns(table:str,
+                                label_maps:dict[str, tuple[Callable[[str],int], SchemaType]],
+                                engine:SqlEngine, suffix:str='_') -> str:
     """
-    Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés, avec un suffixe optionnel. Renvoie le nom de la table créée
+    Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés.
+    Renvoie le nom de la table créée, avec un suffic optionnel, ignoré s'il est déjà présent
     """
     inspector = sqlalchemy.inspect(engine)
     df = pd.read_sql_table(table, engine)
-    dtypes = {col['name']:col['type'] 
+    dtypes = {col['name']:col['type']
              for col in inspector.get_columns(table)
     }
     for column_name, (reverse_index, dtype) in label_maps.items():
@@ -86,7 +99,8 @@ def replace_categorical_columns(table:str, label_maps:dict[str, tuple[Callable[[
         df[column_name] = df[column_name].map(reverse_index)
         dtypes[column_name] = dtype
     new_table_name = table if table.endswith(suffix) else table+suffix
-    df.to_sql(new_table_name, engine, if_exists='replace', dtype=dtypes, chunksize=100000, index=False)
+    df.to_sql(new_table_name, engine, if_exists='replace', dtype=dtypes,
+              chunksize=100000, index=False)
     return new_table_name
 
 
@@ -112,7 +126,8 @@ def factor_categories(column_names, table_names, engine,
                       column_to_table_name:Callable[[str], str]=lambda x:x,
                       verbose=False):
     """
-    Sépare plusieurs colonnes présentes dans les même tables en autant de tables de référence et remplace les valeurs par des identifiants.
+    Sépare les labels des colonnes catégorielle vers des tables de référence.
+    Remplace les valeurs par des identifiants et crée des tables de correspondance.
     """
     label_maps = {}
     inspector = sqlalchemy.inspect(engine)
@@ -131,14 +146,14 @@ def factor_categories(column_names, table_names, engine,
             labels = get_labels(column_name, table_names, engine)
             dtype = create_labels_table(reference_table_name, labels, engine)
         label_maps[column_name] = make_reverse_index(labels), dtype
-    
+
     for table_name in table_names:
         new_table_name = replace_categorical_columns(table_name, label_maps, engine)
         add_foreign_keys(column_names, new_table_name, engine, column_to_table_name, verbose)
 
 
-#%%
-if __name__ == "__main__":
+def main():
+    """Main pour ce fichier."""
     engine = connect_maria("crime_short_test")
     print("Connected to DB")
     category_columns = [
@@ -162,8 +177,11 @@ if __name__ == "__main__":
             "Crimetype",
             "Lastoutcomecategory",
         ])
-        
     ]
     for tables, column_names in category_columns:
         factor_categories(column_names, tables, engine,
             lambda x:x.lower()+'_ref', verbose=True)
+
+#%%
+if __name__ == "__main__":
+    main()
