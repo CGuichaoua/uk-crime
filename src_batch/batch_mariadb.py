@@ -15,7 +15,7 @@ def create_connection(host_name, user_name, user_password, db_name=None, port=33
             password=user_password,
             database=db_name,
             port=port,
-            connection_timeout=600  # 10 minutes de délai
+            connection_timeout=10  # 10 minutes de délai
         )
         print(f"Connexion réussie à la base de données {db_name}" if db_name else "Connexion réussie au serveur MariaDB")
         return connection
@@ -213,14 +213,14 @@ def parcourir_arborescence(connection,chemin_racine, db_path,liste_nom_table,dty
 if __name__ == '__main__':
     short_import = True # Vrai si on fait un import partiel
 
-    chemin_racine = "Crimes au Royaume-Uni"
-    #chemin_racine = "C:/Users/Admin.local/Documents/projetint/files"
+    #chemin_racine = "Crimes au Royaume-Uni"
+    chemin_racine = "C:/Users/Admin.local/Documents/projetint/files"
 
     db_name = "crime" + ('_short' if short_import else "") 
     test = False
     if test:
         db_name += '_test'
-
+    print(f"Nom de la base de données : {db_name}")
     # on définit le nom des tables en fonction du nom du fichier (terminaison)
     liste_nom_table = ['outcomes','stop-and-search','street']
 
