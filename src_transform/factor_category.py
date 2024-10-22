@@ -25,14 +25,10 @@ def get_labels(column:str, tables:Iterable[str], engine:SqlEngine):
     return pd.read_sql_query(query, engine)[column]
 
 
-def connect_maria(db_name:str):
+def connect_maria(db_name:str, user="root", pwd="", host="localhost", port="3306"):
     """
     Connecte une base de données MariaDB via SQLalchemy
     """
-    user="root"
-    pwd=""
-    host="localhost"
-    port="3306"
     return sqlalchemy.create_engine(
         f"mariadb+pymysql://{user}:{pwd}@{host}:{port}/{db_name}")
 
