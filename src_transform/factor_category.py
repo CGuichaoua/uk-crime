@@ -80,27 +80,44 @@ def make_reverse_index(labels:pd.Series):
     return lambda label: None if label is None else reverse_index[standardize_string(label)]
 
 
-def replace_categorical_columns(table:str,
+def restore_constraints(new_table:str, constraint_pk, constraints_fk, engine):
+    """Restores the pre-existing constraints to the new table."""
+    queries = [f"ALTER TABLE `{new_table}` ADD PRIMARY KEY \
+               ({", ".join(constraint_pk["constrained_columns"])}) "]
+    queries.extend(
+        f"ALTER TABLE `{new_table}` \
+            ADD FOREIGN KEY ({", ".join(foreign_key['constrained_columns'])})\
+            REFERENCES {foreign_key['referred_table']}\
+            ({', '.join(foreign_key['referred_columns'])})"
+        for foreign_key in constraints_fk)
+    with engine.connect() as conn:
+        for query in queries:
+            conn.execute(sqlalchemy.text(query))
+
+def replace_categorical_columns(old_table:str,
                                 label_maps:dict[str, tuple[Callable[[str],int], SchemaType]],
                                 engine:SqlEngine, suffix:str='_') -> str:
     """
     Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés.
-    Renvoie le nom de la table créée, avec un suffic optionnel, ignoré s'il est déjà présent
+    Renvoie le nom de la table créée, avec un suffixe optionnel, ignoré s'il est déjà présent
     """
     inspector = sqlalchemy.inspect(engine)
-    df = pd.read_sql_table(table, engine)
+    df = pd.read_sql_table(old_table, engine)
     dtypes = {col['name']:col['type']
-             for col in inspector.get_columns(table)
+             for col in inspector.get_columns(old_table)
     }
+    constraint_pk = inspector.get_pk_constraint(old_table)
+    constraints_fk = inspector.get_foreign_keys(old_table)
     for column_name, (reverse_index, dtype) in label_maps.items():
         if dtypes[column_name] == sqlalchemy.types.Integer:
             print(f"{column_name} is already an Integer type. Skipping reverse index.")
             continue
         df[column_name] = df[column_name].map(reverse_index)
         dtypes[column_name] = dtype
-    new_table_name = table if table.endswith(suffix) else table+suffix
+    new_table_name = old_table if old_table.endswith(suffix) else old_table+suffix
     df.to_sql(new_table_name, engine, if_exists='replace', dtype=dtypes,
               chunksize=100000, index=False)
+    restore_constraints(new_table_name, constraint_pk, constraints_fk, engine)
     return new_table_name
 
 
