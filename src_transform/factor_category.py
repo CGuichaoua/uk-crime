@@ -8,7 +8,7 @@ import sqlalchemy
 from sqlalchemy.dialects.mysql import TINYINT, SMALLINT, MEDIUMINT, INTEGER, BIGINT, VARCHAR
 from sqlalchemy.types import SchemaType
 from sqlalchemy import Engine as SqlEngine
-from sqlalchemy import Table,ForeignKeyConstraint, PrimaryKeyConstraint, Column
+from sqlalchemy import Table,ForeignKeyConstraint, PrimaryKeyConstraint, Column, ForeignKey
 
 def standardize_string(s: str):
     """
@@ -81,59 +81,53 @@ def make_reverse_index(labels:pd.Series):
     return lambda label: None if label is None else reverse_index[standardize_string(label)]
 
 
-def replace_categorical_columns(old_table_name:str,
-                                label_maps:dict[str, tuple[Callable[[str],int], SchemaType]],
-                                engine:SqlEngine, suffix:str='_') -> str:
+def replace_categorical_columns(old_table_name:str, 
+                                label_maps:dict[str, tuple[Callable[[str],int], SchemaType]], 
+                                engine:SqlEngine,
+                                column_to_table_name:Callable[[str], str]=lambda x:x,
+                                hard_clean = False,
+                                suffix:str='_') -> str:
     """
     Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés.
     Renvoie le nom de la table créée, avec un suffixe optionnel, ignoré s'il est déjà présent
     """
-    metadata = sqlalchemy.MetaData()
-    existing_table = Table(old_table_name, metadata, autoload_with=engine)
-
-    new_table_name = old_table_name if old_table_name.endswith(suffix) else old_table_name+suffix
-    new_metadata = sqlalchemy.MetaData()
-    new_table = existing_table.to_metadata(new_metadata, name=new_table_name)
-    new_metadata.reflect(engine, extend_existing=False)
-
     inspector = sqlalchemy.inspect(engine)
-    df = pd.read_sql_table(old_table_name, engine)
-    dtypes = {col['name']:col['type']
-             for col in inspector.get_columns(old_table_name)
-    }
-    for column_name, (reverse_index, dtype) in label_maps.items():
-        if dtypes[column_name] == sqlalchemy.types.Integer:
-            print(f"{column_name} is already an Integer type. Skipping reverse index.")
-            continue
-        new_table.columns[column_name].type=dtype
-        df[column_name] = df[column_name].map(reverse_index)
+    for column_name, (_, dtype) in label_maps.items():
+        new_column_name = column_name + "ID"
+        if any(new_column_name==column['name'] for column in inspector.get_columns(old_table_name)):
+            if not any(column_name==column['name'] for column in inspector.get_columns(old_table_name)):
+                print(f"Column {old_table_name}.{column_name} already processed. Skipping.")
+                continue
+        ref_table_name = column_to_table_name(column_name)
+        
+        add_query = sqlalchemy.text(f"""
+            ALTER TABLE `{old_table_name}`
+            ADD IF NOT EXISTS `{new_column_name}` {dtype.compile(engine.dialect)},
+            ADD CONSTRAINT `fk_{new_column_name}` FOREIGN KEY IF NOT EXISTS (`{new_column_name}`)
+            REFERENCES `{ref_table_name}`(id)
+        """)
+        
+        update_query = sqlalchemy.text(f"""
+            UPDATE `{old_table_name}`
+            JOIN `{ref_table_name}`
+            ON {old_table_name}.`{column_name}` = {ref_table_name}.`{column_name}`
+            SET {old_table_name}.`{new_column_name}` = {ref_table_name}.`id`;
+        """)
 
-    new_table.drop(engine, checkfirst=True)
-    new_table.create(engine)
+        drop_query = sqlalchemy.text(f"""
+            ALTER `{old_table_name}`
+            DROP `{column_name}`
+        """)
 
-    df.to_sql(new_table_name, engine, if_exists='append',
-              chunksize=10000, index=False)
-    return new_table_name
-
-
-def add_foreign_keys(column_names, table_name, engine,
-                    column_to_table_name:Callable[[str], str]=lambda x:x,
-                    verbose=False):
-    """
-    Ajoute les foreign key correspondant aux colonnes factorisées
-    """
-    with engine.connect() as conn:
-        conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 0;"))
-        for column_name in column_names:
-            query = f"""ALTER TABLE `{table_name}`
-                ADD CONSTRAINT `fk_{table_name}_{column_name}` FOREIGN KEY (`{column_name}`)
-                REFERENCES `{column_to_table_name(column_name)}`(`id`)
-                ON DELETE CASCADE;"""
-            if verbose:
-                print(query)
-            conn.execute(sqlalchemy.text(query))
-        conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 1;"))
-
+        with engine.connect() as conn:
+            print(add_query)
+            conn.execute(add_query)
+            print(update_query)
+            conn.execute(update_query)
+            if hard_clean:
+                print(drop_query)
+                conn.execute(drop_query)
+            conn.commit()
 
 
 def factor_categories(column_names, table_names, engine,
@@ -162,8 +156,7 @@ def factor_categories(column_names, table_names, engine,
         label_maps[column_name] = make_reverse_index(labels), dtype
 
     for table_name in table_names:
-        new_table_name = replace_categorical_columns(table_name, label_maps, engine)
-        add_foreign_keys(column_names, new_table_name, engine, column_to_table_name, verbose)
+        replace_categorical_columns(table_name, label_maps, engine, column_to_table_name)
 
 
 def main():
@@ -175,7 +168,7 @@ def main():
         (("outcomes_temp", "street_temp"), [
             "Reportedby",
             "Location",
-            "LSOAcode"
+            # "LSOAcode"
         ]),
         (("stopandsearch_temp",), [
             "Type",
@@ -188,8 +181,8 @@ def main():
             "Outcome",
             "Gender",
         ]),
-        (("outcomes_temp_",), ["Outcometype"]),
-        (("street_temp_",),[
+        (("outcomes_temp",), ["Outcometype"]),
+        (("street_temp",),[
             "Crimetype",
             "Lastoutcomecategory",
         ])
