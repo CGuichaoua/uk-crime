@@ -1,7 +1,11 @@
 import pandas as pd
 import sqlalchemy
+from unidecode import unidecode
 from collections.abc import Iterable
 from collections.abc import Callable
+
+def standardize_string(s: str):
+    return unidecode(s).lower()
 
 def get_labels(column:str, tables:Iterable[str], engine:sqlalchemy.Engine):
     """
@@ -37,8 +41,8 @@ def make_reverse_index(labels:pd.Series):
     """
     Renvoie une lambda qui mappe chaque libellé à son index.
     """
-    reverse_index = {label.lower(): idx for idx, label in labels.items() if label is not None}
-    return lambda label: None if label is None else reverse_index[label.lower()]
+    reverse_index = {standardize_string(label): idx for idx, label in labels.items() if label is not None}
+    return lambda label: None if label is None else reverse_index[standardize_string(label)]
 
 
 def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],int]], engine:sqlalchemy.Engine,
