@@ -57,14 +57,18 @@ def create_labels_table(table_name:str, labels:pd.Series, engine:SqlEngine) -> S
     Ecrit la table de correspondance entre les id des catégories et leurs libellés dans la BDD.
     Renvoie le type de donnée 
     """
-    labels.index = labels.index.rename("id")
+    metadata = sqlalchemy.MetaData()
     dtype = min_int_size(len(labels), safety_factor=2)
-    labels.to_sql(table_name, engine, dtype={"id": dtype}, if_exists='fail')
+    table = Table(table_name, metadata,
+                  Column('id', dtype), # primary_key=True),
+                  Column(labels.name, VARCHAR(255), unique=True))
     with engine.connect() as conn:
+        table.create(conn)
+        labels.index = labels.index.rename("id")
+        labels.to_sql(table_name, conn, if_exists='append', index=True, chunksize=100)
         conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` \
                                      ADD PRIMARY KEY (`{labels.index.name}`);"))
-        conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` \
-                                     ADD UNIQUE (`{labels.name}`);"))
+
     return dtype
 
 def make_reverse_index(labels:pd.Series):
