@@ -1,5 +1,6 @@
 import pandas as pd
 import sqlalchemy
+import math
 from unidecode import unidecode
 from collections.abc import Iterable
 from collections.abc import Callable
@@ -27,15 +28,38 @@ def connect_maria(db_name:str):
     return sqlalchemy.create_engine(
         f"mariadb+pymysql://{user}:{pwd}@{host}:{port}/{db_name}")
 
+
+def min_int_size(nb_line:int, safety_factor:int=2):
+    """
+    Renvoie la taille de données appropriée au nombre de lignes passé.
+    """
+    from sqlalchemy.dialects.mysql import TINYINT, SMALLINT, MEDIUMINT, INTEGER, BIGINT
+    sizes = [(TINYINT(unsigned=True), 8),
+             (SMALLINT(unsigned=True), 16),
+             (MEDIUMINT(unsigned=True), 24),
+             (INTEGER(unsigned=True), 32),
+             (BIGINT(unsigned=True), 64)
+             ]
+    log_len = math.log2(nb_line if nb_line != 0 else 1) + math.log(safety_factor)
+    try:
+        return next(type for (type, max_size) in sizes if max_size > log_len)
+    except StopIteration:
+        raise ValueError("Table too big to index")
+
+
+
 def create_labels_table(table_name:str, labels:pd.Series, engine:sqlalchemy.Engine) -> None:
     """
     Ecrit la table de correspondance entre les id des catégories et leurs libellés dans la BDD.
+    Renvoie le type de donnée 
     """
     labels.index = labels.index.rename("id")
-    labels.to_sql(table_name, engine, dtype={"id": sqlalchemy.types.Integer}, if_exists='fail')    
+    dtype = min_int_size(len(labels), safety_factor=2)
+    labels.to_sql(table_name, engine, dtype={"id": dtype}, if_exists='fail')    
     with engine.connect() as conn:
         conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` ADD PRIMARY KEY (`{labels.index.name}`);"))
         conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` ADD UNIQUE (`{labels.name}`);"))
+    return dtype
 
 def make_reverse_index(labels:pd.Series):
     """
@@ -45,23 +69,24 @@ def make_reverse_index(labels:pd.Series):
     return lambda label: None if label is None else reverse_index[standardize_string(label)]
 
 
-def replace_categorical_columns(table:str, label_maps:dict[str, Callable[[str],int]], engine:sqlalchemy.Engine,
+def replace_categorical_columns(table:str, label_maps:dict[str, tuple[Callable[[str],int], sqlalchemy.types.SchemaType]], engine:sqlalchemy.Engine,
                                 suffix:str='_') -> str:
     """
     Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés, avec un suffixe optionnel. Renvoie le nom de la table créée
     """
+    inspector = sqlalchemy.inspect(engine)
     df = pd.read_sql_table(table, engine)
-    types = {col['name']:col['type'] 
-             for col in sqlalchemy.inspect(engine).get_columns(table)
+    dtypes = {col['name']:col['type'] 
+             for col in inspector.get_columns(table)
     }
-    for column_name, reverse_index in label_maps.items():
-        if types[column_name] == sqlalchemy.types.Integer:
+    for column_name, (reverse_index, dtype) in label_maps.items():
+        if dtypes[column_name] == sqlalchemy.types.Integer:
             print(f"{column_name} is already an Integer type. Skipping reverse index.")
             continue
         df[column_name] = df[column_name].map(reverse_index)
-        types[column_name] = sqlalchemy.types.Integer
+        dtypes[column_name] = dtype
     new_table_name = table if table.endswith(suffix) else table+suffix
-    df.to_sql(new_table_name, engine, if_exists='replace', dtype=types, chunksize=100000, index=False)
+    df.to_sql(new_table_name, engine, if_exists='replace', dtype=dtypes, chunksize=100000, index=False)
     return new_table_name
 
 
@@ -90,19 +115,22 @@ def factor_categories(column_names, table_names, engine,
     Sépare plusieurs colonnes présentes dans les même tables en autant de tables de référence et remplace les valeurs par des identifiants.
     """
     label_maps = {}
+    inspector = sqlalchemy.inspect(engine)
     for column_name in column_names:
         reference_table_name = column_to_table_name(column_name)
         if verbose:
             print(f"Building reference table {reference_table_name} for {column_name}")
-        if sqlalchemy.inspect(engine).has_table(reference_table_name):
+        if inspector.has_table(reference_table_name):
             if verbose:
                 print(f"Found table for {reference_table_name}, skipping build and reading instead")
             labels = pd.read_sql_table(reference_table_name, engine)
             labels = labels[labels.columns[1]]  # Récupérer la Series depuis la DataFrame
+            columns = inspector.get_columns(reference_table_name)
+            dtype = next(column["type"] for column in columns if column["name"]=='id')
         else:
             labels = get_labels(column_name, table_names, engine)
-            create_labels_table(reference_table_name, labels, engine)
-        label_maps[column_name] = make_reverse_index(labels)
+            dtype = create_labels_table(reference_table_name, labels, engine)
+        label_maps[column_name] = make_reverse_index(labels), dtype
     
     for table_name in table_names:
         new_table_name = replace_categorical_columns(table_name, label_maps, engine)
@@ -138,4 +166,4 @@ if __name__ == "__main__":
     ]
     for tables, column_names in category_columns:
         factor_categories(column_names, tables, engine,
-            lambda x:x.lower()+'_ref')
+            lambda x:x.lower()+'_ref', verbose=True)
