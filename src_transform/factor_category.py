@@ -77,22 +77,6 @@ def make_reverse_index(labels:pd.Series):
     return lambda label: None if label is None else reverse_index[standardize_string(label)]
 
 
-def restore_constraints(new_table:str, constraint_pk, constraints_fk, engine):
-    """Restores the pre-existing constraints to the new table."""
-    queries = [f"""ALTER TABLE `{new_table}` ADD PRIMARY KEY
-               ({", ".join(constraint_pk["constrained_columns"])}) """]
-    queries.extend(
-        f"""ALTER TABLE `{new_table}`
-            ADD FOREIGN KEY ({", ".join(foreign_key['constrained_columns'])})
-            REFERENCES {foreign_key['referred_table']}
-            ({', '.join(foreign_key['referred_columns'])})"""
-        for foreign_key in constraints_fk)
-    with engine.connect() as conn:
-        conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 0;"))
-        for query in queries:
-            conn.execute(sqlalchemy.text(query))
-        conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 1;"))
-
 def replace_categorical_columns(old_table_name:str,
                                 label_maps:dict[str, tuple[Callable[[str],int], SchemaType]],
                                 engine:SqlEngine, suffix:str='_') -> str:
