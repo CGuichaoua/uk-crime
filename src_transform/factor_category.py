@@ -55,7 +55,7 @@ def min_int_size(nb_line:int, safety_factor:int=2):
 
 
 
-def create_labels_table(table_name:str, labels:pd.Series, engine:SqlEngine) -> None:
+def create_labels_table(table_name:str, labels:pd.Series, engine:SqlEngine) -> SchemaType:
     """
     Ecrit la table de correspondance entre les id des catégories et leurs libellés dans la BDD.
     Renvoie le type de donnée 
