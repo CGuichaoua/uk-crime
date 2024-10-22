@@ -68,6 +68,7 @@ def create_labels_table(table_name:str, labels:pd.Series, engine:SqlEngine) -> S
         labels.to_sql(table_name, conn, if_exists='append', index=True, chunksize=100)
         conn.execute(sqlalchemy.text(f"ALTER TABLE `{table_name}` \
                                      ADD PRIMARY KEY (`{labels.index.name}`);"))
+        conn.commit()
 
     return dtype
 
