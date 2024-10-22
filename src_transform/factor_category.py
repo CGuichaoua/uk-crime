@@ -8,6 +8,7 @@ import sqlalchemy
 from sqlalchemy.dialects.mysql import TINYINT, SMALLINT, MEDIUMINT, INTEGER, BIGINT
 from sqlalchemy.types import SchemaType
 from sqlalchemy import Engine as SqlEngine
+from sqlalchemy import Table,ForeignKeyConstraint, PrimaryKeyConstraint
 
 def standardize_string(s: str):
     """
@@ -78,13 +79,13 @@ def make_reverse_index(labels:pd.Series):
 
 def restore_constraints(new_table:str, constraint_pk, constraints_fk, engine):
     """Restores the pre-existing constraints to the new table."""
-    queries = [f"ALTER TABLE `{new_table}` ADD PRIMARY KEY \
-               ({", ".join(constraint_pk["constrained_columns"])}) "]
+    queries = [f"""ALTER TABLE `{new_table}` ADD PRIMARY KEY
+               ({", ".join(constraint_pk["constrained_columns"])}) """]
     queries.extend(
-        f"ALTER TABLE `{new_table}` \
-            ADD FOREIGN KEY ({", ".join(foreign_key['constrained_columns'])})\
-            REFERENCES {foreign_key['referred_table']}\
-            ({', '.join(foreign_key['referred_columns'])})"
+        f"""ALTER TABLE `{new_table}`
+            ADD FOREIGN KEY ({", ".join(foreign_key['constrained_columns'])})
+            REFERENCES {foreign_key['referred_table']}
+            ({', '.join(foreign_key['referred_columns'])})"""
         for foreign_key in constraints_fk)
     with engine.connect() as conn:
         conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 0;"))
@@ -92,30 +93,38 @@ def restore_constraints(new_table:str, constraint_pk, constraints_fk, engine):
             conn.execute(sqlalchemy.text(query))
         conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 1;"))
 
-def replace_categorical_columns(old_table:str,
+def replace_categorical_columns(old_table_name:str,
                                 label_maps:dict[str, tuple[Callable[[str],int], SchemaType]],
                                 engine:SqlEngine, suffix:str='_') -> str:
     """
     Met à jour une table pour utiliser les identifiants de catégorie à la place des libellés.
     Renvoie le nom de la table créée, avec un suffixe optionnel, ignoré s'il est déjà présent
     """
+    metadata = sqlalchemy.MetaData()
+    existing_table = Table(old_table_name, metadata, autoload_with=engine)
+
+    new_table_name = old_table_name if old_table_name.endswith(suffix) else old_table_name+suffix
+    new_metadata = sqlalchemy.MetaData()
+    new_table = existing_table.to_metadata(new_metadata, name=new_table_name)
+    new_metadata.reflect(engine, extend_existing=False)
+
     inspector = sqlalchemy.inspect(engine)
-    df = pd.read_sql_table(old_table, engine)
+    df = pd.read_sql_table(old_table_name, engine)
     dtypes = {col['name']:col['type']
-             for col in inspector.get_columns(old_table)
+             for col in inspector.get_columns(old_table_name)
     }
-    constraint_pk = inspector.get_pk_constraint(old_table)
-    constraints_fk = inspector.get_foreign_keys(old_table)
     for column_name, (reverse_index, dtype) in label_maps.items():
         if dtypes[column_name] == sqlalchemy.types.Integer:
             print(f"{column_name} is already an Integer type. Skipping reverse index.")
             continue
+        new_table.columns[column_name].type=dtype
         df[column_name] = df[column_name].map(reverse_index)
-        dtypes[column_name] = dtype
-    new_table_name = old_table if old_table.endswith(suffix) else old_table+suffix
-    df.to_sql(new_table_name, engine, if_exists='replace', dtype=dtypes,
-              chunksize=100000, index=False)
-    restore_constraints(new_table_name, constraint_pk, constraints_fk, engine)
+
+    new_table.drop(engine, checkfirst=True)
+    new_table.create(engine)
+
+    df.to_sql(new_table_name, engine, if_exists='append',
+              chunksize=10000, index=False)
     return new_table_name
 
 
@@ -128,10 +137,10 @@ def add_foreign_keys(column_names, table_name, engine,
     with engine.connect() as conn:
         conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 0;"))
         for column_name in column_names:
-            query = f"ALTER TABLE `{table_name}` \
-                ADD CONSTRAINT `fk_{table_name}_{column_name}` FOREIGN KEY (`{column_name}`) \
-                REFERENCES `{column_to_table_name(column_name)}`(`id`) \
-                ON DELETE CASCADE;"
+            query = f"""ALTER TABLE `{table_name}`
+                ADD CONSTRAINT `fk_{table_name}_{column_name}` FOREIGN KEY (`{column_name}`)
+                REFERENCES `{column_to_table_name(column_name)}`(`id`)
+                ON DELETE CASCADE;"""
             if verbose:
                 print(query)
             conn.execute(sqlalchemy.text(query))
@@ -171,12 +180,14 @@ def factor_categories(column_names, table_names, engine,
 
 def main():
     """Main pour ce fichier."""
-    engine = connect_maria("crime_short_test")
-    print("Connected to DB")
+    db_name = "crime_short_test"
+    engine = connect_maria(db_name)
+    print("Connected to DB " + db_name)
     category_columns = [
         (("outcomes_temp", "street_temp"), [
             "Reportedby",
             "Location",
+            "LSOAcode"
         ]),
         (("stopandsearch_temp",), [
             "Type",
