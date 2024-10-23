@@ -75,7 +75,7 @@ missing_coords = missing_lsoa_df1[['Latitude', 'Longitude']].values
 
 knn = NearestNeighbors(n_neighbors=5, metric='euclidean')  # Euclidean distance for geographical proximity
 knn.fit(valid_coords)
-threshold=0.02
+threshold = 0.02
 
 distances, indices = knn.kneighbors(missing_coords)
 
@@ -132,7 +132,9 @@ mask = (df3['LSOA code'].isnull()) & (df3['Latitude'].notnull())
 # Use the mask with .loc to keep the original indices
 missing_lsoa_df3 = df3.loc[mask]
 
-centroid_lsoa=[[get_lsoa_centroid(x,lsoa_geojson),x] for x in lsoa_data['LSOA11CD']]
+centroid_lsoa=[[get_lsoa_centroid(x,lsoa_geojson),x] for x in lsoa_data['LSOA11CD']] 
+#à terme précompute et faire une table comme pour centroid_sa
+
 # centroid_sa=[[get_sa_centroid(x,sa_geojson),x] for x in sa_data['SA2011']]
 
 centroid_lsoa = [(lat_lon[0], lat_lon[1], code) for (lat_lon, code) in centroid_lsoa]
@@ -170,7 +172,7 @@ missing_lsoa_df3['sa_code_match'] = centroid_sa.iloc[indices_sa.flatten()]['SA c
 missing_lsoa_df3['distance_sa_match'] = distances_sa.flatten()
 
 
-threshold = 0.05  #~1km
+threshold = 0.02  #~1km
 
 # Update the LSOA code based on the smallest distance
 missing_lsoa_df3['LSOA code'] = np.select(
@@ -219,10 +221,8 @@ print(rows_with_lsoa_no_latitude)
 
 
 missing_lsoa_df2 = df2[df2['Latitude'].notnull()]
-# =============================================================================
-# missing_lsoa_df2['LSOA code']=None
-# missing_lsoa_df2['LSOA name']=None
-# =============================================================================
+missing_lsoa_df2['LSOA code']=None
+missing_lsoa_df2['LSOA name']=None
 lsoa_codes = []
 distance_lsoa = []
 sa_codes = []
@@ -243,7 +243,7 @@ missing_lsoa_df2['distance_lsoa_match'] = distances_lsoa.flatten()
 missing_lsoa_df2['sa_code_match'] = centroid_sa.iloc[indices_sa.flatten()]['SA code'].values
 missing_lsoa_df2['distance_sa_match'] = distances_sa.flatten()
 
-threshold = 0.05  #~1km
+threshold = 0.02   #~1km
 
 
 # Update the LSOA code based on the smallest distance
@@ -275,14 +275,28 @@ missing_lsoa_df2 = missing_lsoa_df2[missing_lsoa_df2['LSOA code'].notnull()]
 missing_lsoa_df2.set_index('original_index', inplace=True)
 
 
-# df2['LSOA code']=None
-# df2['LSOA name']=None
+df2['LSOA code']=None
+df2['LSOA name']=None
 df2.update(missing_lsoa_df2)
 
 
 
+# =============================================================================
+# null_values = df3['LSOA code'].isnull().sum()
+# start_with_N = df3['LSOA code'].str.startswith('N').sum()
+# start_with_E = df3['LSOA code'].str.startswith('E').sum()
+# start_with_W = df3['LSOA code'].str.startswith('W').sum()
+# 
+# # Display the results
+# print(f"Null values: {null_values}")
+# print(f"Starts with 'N': {start_with_N}")
+# print(f"Starts with 'E': {start_with_E}")
+# print(f"Starts with 'W': {start_with_W}")
+# =============================================================================
 
-
+# df1.to_csv('outcomes.csv', index=False)
+# df2.to_csv('stopnsearch.csv', index=False)
+# df3.to_csv('street.csv', index=False)
 
 
 

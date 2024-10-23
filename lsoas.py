@@ -131,7 +131,37 @@ print(len(aaa)/len(aa),len(bbb)/len(bb))
 # =============================================================================
 
 
-
+def calcul_ratio_changement_nomenclature(df1):
+    old_outcomes=df1.iloc[0000000:4600000]
+    new_outcomes=df1.iloc[5000000:]
+    
+    old_outcomes=old_outcomes.dropna(subset=['LSOA code'])
+    new_outcomes=new_outcomes.dropna(subset=['LSOA code'])
+    
+    old_outcomes=old_outcomes.merge(data,left_on=['LSOA code','LSOA name'],right_on=['LSOA11CD','LSOA11NM'],how='left')
+    new_outcomes=new_outcomes.merge(data,left_on=['LSOA code','LSOA name'],right_on=['LSOA11CD','LSOA11NM'],how='left')
+    old_outcomes.dropna(subset=['LSOA11CD'],inplace=True)
+    print('ratio de changement sur les vieilles valeurs old->new nomenclature')
+    print(len(old_outcomes[old_outcomes['LSOA11CD']!=old_outcomes['LSOA21CD']])/len(old_outcomes))
+    new_outcomes.dropna(subset=['LSOA11CD'],inplace=True)
+    print('ratio de changement sur les nouvelles valeurs old->new nomenclature')
+    print(len(new_outcomes[new_outcomes['LSOA11CD']!=new_outcomes['LSOA21CD']])/len(new_outcomes))
+    
+    
+    old_outcomes=df1.iloc[0000000:4600000]
+    new_outcomes=df1.iloc[5000000:]
+    
+    old_outcomes=old_outcomes.dropna(subset=['LSOA code'])
+    new_outcomes=new_outcomes.dropna(subset=['LSOA code'])
+    
+    old_outcomes=old_outcomes.merge(data, left_on=['LSOA code','LSOA name'],right_on=['LSOA21CD','LSOA21NM'],how='left')
+    old_outcomes.dropna(subset=['LSOA11CD'],inplace=True)
+    print('ratio de changement sur les vieilles valeurs new->old nomenclature')
+    print(len(old_outcomes[old_outcomes['LSOA11CD']!=old_outcomes['LSOA21CD']])/len(old_outcomes))
+    new_outcomes=new_outcomes.merge(data, left_on=['LSOA code','LSOA name'],right_on=['LSOA21CD','LSOA21NM'],how='left')
+    new_outcomes.dropna(subset=['LSOA11CD'],inplace=True)
+    print('ratio de changement sur les nouvelles valeurs new->old nomenclature')
+    print(len(new_outcomes[new_outcomes['LSOA11CD']!=new_outcomes['LSOA21CD']])/len(new_outcomes))
 
 
 
