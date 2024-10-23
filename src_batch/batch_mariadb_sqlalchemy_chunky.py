@@ -70,13 +70,6 @@ def inserer_donnees(connection, nom_table, colonnes, donnees):
 def inserer_donnees_chunky(connection, nom_table, colonnes, donnees, batch_size=100000):
     """
     Insère les données dans la table MariaDB via SQLAlchemy par lots.
-    
-    Args:
-    connection: La connexion SQLAlchemy.
-    nom_table (str): Le nom de la table dans laquelle insérer les données.
-    colonnes (list): La liste des colonnes de la table.
-    donnees (pd.DataFrame): Le DataFrame contenant les données à insérer.
-    batch_size (int): La taille des lots pour l'insertion.
     """
     metadata = MetaData()
     table = Table(nom_table, metadata, autoload_with=connection)
@@ -175,12 +168,21 @@ def traiter_fichier(connection,chemin_fichier, fichier,liste_nom_table,dtype, in
  
     # rajout des informations year_month et where dans le dataframe
     annee_mois,info_geo = extraire_info_du_nom_fichier(fichier,liste_nom_table)
-    df['annee_mois'] = annee_mois
-    new_info_geo=info_geo
+     
     # test si dict_nom_fichier[info_geo] existe
-    if info_geo in dict_nom_fichier:
-        new_info_geo=dict_nom_fichier[info_geo]
-    df['info_geo'] = new_info_geo
+    if 'infogeo' in df.columns:
+        df['annee_mois'] = ''
+        if df['infogeo'].iloc[0] in dict_nom_fichier:
+            new_info_geo = dict_nom_fichier[df['infogeo'].iloc[0]]
+    else:
+        df['annee_mois'] = annee_mois
+        new_info_geo=info_geo
+        if info_geo in dict_nom_fichier:
+            new_info_geo = dict_nom_fichier[info_geo]
+        df['info_geo'] = new_info_geo
+        
+
+    
 
     # nettoyer les données
     df, duplicates = nettoyer_donnees(df)
@@ -226,7 +228,7 @@ if __name__ == '__main__':
     short_import = False # Vrai si on fait un import partiel
 
     #chemin_racine = "Crimes au Royaume-Uni"
-    chemin_racine = "C:/Users/HP/Documents/ICAM/chunky"
+    chemin_racine = "C:/Users/Admin.local/Documents/projetint/files_chunk"
 
     db_name = "crime" + ('_short' if short_import else "") 
     test = True
