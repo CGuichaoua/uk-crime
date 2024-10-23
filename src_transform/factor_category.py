@@ -104,7 +104,7 @@ def replace_categorical_columns(old_table_name:str,
         add_query = sqlalchemy.text(f"""
             ALTER TABLE `{old_table_name}`
             ADD IF NOT EXISTS `{new_column_name}` {dtype.compile(engine.dialect)},
-            ADD CONSTRAINT `fk_{new_column_name}` FOREIGN KEY IF NOT EXISTS (`{new_column_name}`)
+            ADD CONSTRAINT `fk_{old_table_name}_{new_column_name}` FOREIGN KEY IF NOT EXISTS (`{new_column_name}`)
             REFERENCES `{ref_table_name}`(id)
         """)
         
@@ -169,7 +169,7 @@ def main():
         (("outcomes_temp", "street_temp"), [
             "Reportedby",
             "Location",
-            # "LSOAcode"
+            "LSOAcode"
         ]),
         (("stopandsearch_temp",), [
             "Type",
