@@ -116,8 +116,8 @@ def replace_categorical_columns(old_table_name:str,
         """)
 
         drop_query = sqlalchemy.text(f"""
-            ALTER `{old_table_name}`
-            DROP `{column_name}`
+            ALTER TABLE `{old_table_name}`
+            DROP COLUMN IF EXISTS `{column_name}`
         """)
 
         with engine.connect() as conn:
@@ -157,12 +157,12 @@ def factor_categories(column_names, table_names, engine,
         label_maps[column_name] = make_reverse_index(labels), dtype
 
     for table_name in table_names:
-        replace_categorical_columns(table_name, label_maps, engine, column_to_table_name)
+        replace_categorical_columns(table_name, label_maps, engine, column_to_table_name, hard_clean=True)
 
 
 def main():
     """Main pour ce fichier."""
-    db_name = "crime_short_test"
+    db_name = "crime_short"
     engine = connect_maria(db_name)
     print("Connected to DB " + db_name)
     category_columns = [
